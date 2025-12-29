@@ -1,0 +1,50 @@
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master ]
+
+name: binaries
+
+jobs:
+  # release binaries
+  release-bins:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        targets:
+          - x86_64-unknown-linux-musl
+        bins:
+          - compact-calendar
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@c5a29ddb4d9d194e7c84ec8c3fba61b1c31fee8c # master
+        with:
+          toolchain: stable
+          target: ${{ matrix.targets }}
+      - run: cargo install cargo-quickinstall
+      - run: cargo quickinstall cross
+      - run: cross build --bin ${{ matrix.bins }} --locked --target ${{ matrix.targets }} --profile=dist
+
+      - name: archive
+        run: |
+          tar -czvf ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz \
+              -C target/${{ matrix.targets }}/dist/ ${{ matrix.bins }}
+
+      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          path: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+
+      - name: Upload binary to release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: svenstaro/upload-release-action@04733e069f2d7f7f0b4aebc4fbdbce8613b03ccd # v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ matrix.bins }}-${{ matrix.targets }}.tar.gz
+          asset_name: ${{ matrix.bins }}-${{ github.ref_name }}-${{ matrix.targets }}.tar.gz
+          tag: ${{ github.ref }}
+          prerelease: true
+          overwrite: true
