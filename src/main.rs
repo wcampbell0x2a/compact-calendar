@@ -1,5 +1,6 @@
 use chrono::Datelike;
 use clap::Parser;
+use compact_calendar::models::{ColorMode, PastDateDisplay, WeekStart, WeekendDisplay};
 use compact_calendar::rendering::CalendarRenderer;
 use std::path::PathBuf;
 
@@ -35,13 +36,37 @@ fn main() {
     let year = args.year.unwrap_or_else(|| chrono::Local::now().year());
 
     let config = compact_calendar::load_config(&args.config);
-    let week_starts_monday = !args.sunday;
+
+    let week_start = if args.sunday {
+        WeekStart::Sunday
+    } else {
+        WeekStart::Monday
+    };
+
+    let weekend_display = if args.no_dim_weekends {
+        WeekendDisplay::Normal
+    } else {
+        WeekendDisplay::Dimmed
+    };
+
+    let color_mode = if args.work {
+        ColorMode::Work
+    } else {
+        ColorMode::Normal
+    };
+
+    let past_date_display = if args.no_strikethrough_past {
+        PastDateDisplay::Normal
+    } else {
+        PastDateDisplay::Strikethrough
+    };
+
     let calendar = compact_calendar::build_calendar(
         year,
-        week_starts_monday,
-        args.no_dim_weekends,
-        args.work,
-        args.no_strikethrough_past,
+        week_start,
+        weekend_display,
+        color_mode,
+        past_date_display,
         config,
     );
 

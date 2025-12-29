@@ -1,6 +1,30 @@
 use chrono::{Datelike, NaiveDate};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WeekStart {
+    Monday,
+    Sunday,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WeekendDisplay {
+    Dimmed,
+    Normal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorMode {
+    Normal,
+    Work,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PastDateDisplay {
+    Strikethrough,
+    Normal,
+}
+
 #[derive(Debug, Clone)]
 pub struct DateDetail {
     pub description: String,
@@ -17,10 +41,10 @@ pub struct DateRange {
 
 pub struct Calendar {
     pub year: i32,
-    pub week_starts_monday: bool,
-    pub no_dim_weekends: bool,
-    pub work_mode: bool,
-    pub no_strikethrough_past: bool,
+    pub week_start: WeekStart,
+    pub weekend_display: WeekendDisplay,
+    pub color_mode: ColorMode,
+    pub past_date_display: PastDateDisplay,
     pub details: HashMap<NaiveDate, DateDetail>,
     pub ranges: Vec<DateRange>,
 }
@@ -28,29 +52,28 @@ pub struct Calendar {
 impl Calendar {
     pub fn new(
         year: i32,
-        week_starts_monday: bool,
-        no_dim_weekends: bool,
-        work_mode: bool,
-        no_strikethrough_past: bool,
+        week_start: WeekStart,
+        weekend_display: WeekendDisplay,
+        color_mode: ColorMode,
+        past_date_display: PastDateDisplay,
         details: HashMap<NaiveDate, DateDetail>,
         ranges: Vec<DateRange>,
     ) -> Self {
         Calendar {
             year,
-            week_starts_monday,
-            no_dim_weekends,
-            work_mode,
-            no_strikethrough_past,
+            week_start,
+            weekend_display,
+            color_mode,
+            past_date_display,
             details,
             ranges,
         }
     }
 
     pub fn get_weekday_num(&self, date: NaiveDate) -> u32 {
-        if self.week_starts_monday {
-            date.weekday().num_days_from_monday()
-        } else {
-            date.weekday().num_days_from_sunday()
+        match self.week_start {
+            WeekStart::Monday => date.weekday().num_days_from_monday(),
+            WeekStart::Sunday => date.weekday().num_days_from_sunday(),
         }
     }
 }

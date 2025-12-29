@@ -1,5 +1,5 @@
 use crate::formatting::{MonthInfo, WeekLayout};
-use crate::models::{Calendar, DateDetail};
+use crate::models::{Calendar, ColorMode, DateDetail, PastDateDisplay, WeekStart, WeekendDisplay};
 use anstyle::{AnsiColor, Color, Effects, RgbColor, Style};
 use chrono::Weekday;
 use chrono::{Datelike, NaiveDate};
@@ -105,13 +105,13 @@ impl DateStyle {
         date: NaiveDate,
         color: Option<String>,
         today: NaiveDate,
-        strikethrough_past: bool,
-        dim_weekends: bool,
+        past_date_display: PastDateDisplay,
+        weekend_display: WeekendDisplay,
     ) -> Self {
         let is_today = date == today;
-        let is_past = strikethrough_past && date < today;
-        let is_weekend =
-            dim_weekends && (date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun);
+        let is_past = past_date_display == PastDateDisplay::Strikethrough && date < today;
+        let is_weekend = weekend_display == WeekendDisplay::Dimmed
+            && (date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun);
 
         let mut effects = Effects::new();
         if is_past {
@@ -455,10 +455,9 @@ impl<'a> CalendarRenderer<'a> {
         ));
         output.push_str(&format!("├{:─<width$}┤\n", "", width = HEADER_WIDTH));
         output.push_str("│              ");
-        if self.calendar.week_starts_monday {
-            output.push_str("Mon  Tue  Wed  Thu  Fri  Sat  Sun │\n");
-        } else {
-            output.push_str("Sun  Mon  Tue  Wed  Thu  Fri  Sat │\n");
+        match self.calendar.week_start {
+            WeekStart::Monday => output.push_str("Mon  Tue  Wed  Thu  Fri  Sat  Sun │\n"),
+            WeekStart::Sunday => output.push_str("Sun  Mon  Tue  Wed  Thu  Fri  Sat │\n"),
         }
         output
     }
@@ -753,10 +752,9 @@ impl<'a> CalendarRenderer<'a> {
         );
         println!("├{:─<width$}┤", "", width = HEADER_WIDTH);
         print!("│              ");
-        if self.calendar.week_starts_monday {
-            println!("Mon  Tue  Wed  Thu  Fri  Sat  Sun │");
-        } else {
-            println!("Sun  Mon  Tue  Wed  Thu  Fri  Sat │");
+        match self.calendar.week_start {
+            WeekStart::Monday => println!("Mon  Tue  Wed  Thu  Fri  Sat  Sun │"),
+            WeekStart::Sunday => println!("Sun  Mon  Tue  Wed  Thu  Fri  Sat │"),
         }
     }
 
@@ -856,7 +854,7 @@ impl<'a> CalendarRenderer<'a> {
 
     fn get_date_color(&self, date: NaiveDate) -> Option<String> {
         // In work mode, never color weekends
-        if self.calendar.work_mode {
+        if self.calendar.color_mode == ColorMode::Work {
             if date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun {
                 return None;
             }
@@ -937,9 +935,10 @@ impl<'a> CalendarRenderer<'a> {
 
             let today = chrono::Local::now().date_naive();
             let is_today = date == today;
-            let is_past = !self.calendar.no_strikethrough_past && date < today;
+            let is_past =
+                self.calendar.past_date_display == PastDateDisplay::Strikethrough && date < today;
 
-            let is_weekend = !self.calendar.no_dim_weekends
+            let is_weekend = self.calendar.weekend_display == WeekendDisplay::Dimmed
                 && (date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun);
 
             if let Some(color) = self.get_date_color(date) {
