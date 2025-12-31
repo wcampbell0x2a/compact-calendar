@@ -3,6 +3,7 @@ use crate::models::{Calendar, ColorMode, DateDetail, PastDateDisplay, WeekStart,
 use anstyle::{AnsiColor, Color, Effects, RgbColor, Style};
 use chrono::Weekday;
 use chrono::{Datelike, NaiveDate};
+use ratatui_style_ayu::ayu_dark as ayu;
 
 #[derive(Debug, Clone)]
 pub struct RenderState {
@@ -286,64 +287,84 @@ impl ColorPalette {
     }
 
     pub fn get_color_value(name: &str) -> Option<ColorValue> {
+        // Helper function to convert ratatui_core Color to anstyle RgbColor
+        let to_rgb = |color: ratatui_core::style::Color| -> RgbColor {
+            match color {
+                ratatui_core::style::Color::Rgb(r, g, b) => RgbColor(r, g, b),
+                _ => RgbColor(255, 255, 255), // fallback
+            }
+        };
+
+        // Helper to create dimmed version by reducing brightness
+        let dimmed = |rgb: RgbColor| -> RgbColor {
+            RgbColor(
+                (rgb.0 as f32 * 0.7) as u8,
+                (rgb.1 as f32 * 0.7) as u8,
+                (rgb.2 as f32 * 0.7) as u8,
+            )
+        };
+
         match name {
-            "orange" => Some(ColorValue::new(
-                RgbColor(255, 143, 64),
-                RgbColor(178, 100, 45),
-            )),
-            "yellow" => Some(ColorValue::new(
-                RgbColor(230, 180, 80),
-                RgbColor(161, 126, 56),
-            )),
-            "green" => Some(ColorValue::new(
-                RgbColor(170, 217, 76),
-                RgbColor(119, 152, 53),
-            )),
-            "blue" => Some(ColorValue::new(
-                RgbColor(89, 194, 255),
-                RgbColor(62, 136, 179),
-            )),
-            "purple" => Some(ColorValue::new(
-                RgbColor(210, 166, 255),
-                RgbColor(147, 116, 179),
-            )),
-            "red" => Some(ColorValue::new(
-                RgbColor(240, 113, 120),
-                RgbColor(168, 79, 84),
-            )),
-            "cyan" => Some(ColorValue::new(
-                RgbColor(149, 230, 203),
-                RgbColor(104, 161, 142),
-            )),
-            "gray" => Some(ColorValue::new(RgbColor(95, 99, 110), RgbColor(67, 69, 77))),
-            "light_orange" => Some(ColorValue::new(
-                RgbColor(255, 180, 84),
-                RgbColor(179, 126, 59),
-            )),
-            "light_yellow" => Some(ColorValue::new(
-                RgbColor(249, 175, 79),
-                RgbColor(174, 123, 55),
-            )),
-            "light_green" => Some(ColorValue::new(
-                RgbColor(145, 179, 98),
-                RgbColor(102, 125, 69),
-            )),
-            "light_blue" => Some(ColorValue::new(
-                RgbColor(83, 189, 250),
-                RgbColor(58, 132, 175),
-            )),
-            "light_purple" => Some(ColorValue::new(
-                RgbColor(210, 166, 255),
-                RgbColor(147, 116, 179),
-            )),
-            "light_red" => Some(ColorValue::new(
-                RgbColor(234, 108, 115),
-                RgbColor(164, 76, 81),
-            )),
-            "light_cyan" => Some(ColorValue::new(
-                RgbColor(144, 225, 198),
-                RgbColor(101, 158, 139),
-            )),
+            "orange" => {
+                let normal = to_rgb(ayu::ORANGE);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "yellow" => {
+                let normal = to_rgb(ayu::YELLOW);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "green" => {
+                let normal = to_rgb(ayu::GREEN);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "blue" => {
+                let normal = to_rgb(ayu::BLUE);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "purple" => {
+                let normal = to_rgb(ayu::PURPLE);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "red" => {
+                let normal = to_rgb(ayu::RED);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "cyan" => {
+                let normal = to_rgb(ayu::CYAN);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "gray" => {
+                let normal = to_rgb(ayu::COMMENT);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_orange" => {
+                let normal = to_rgb(ayu::ORANGE);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_yellow" => {
+                let normal = to_rgb(ayu::YELLOW);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_green" => {
+                let normal = to_rgb(ayu::GREEN);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_blue" => {
+                let normal = to_rgb(ayu::BLUE);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_purple" => {
+                let normal = to_rgb(ayu::PURPLE);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_red" => {
+                let normal = to_rgb(ayu::RED);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
+            "light_cyan" => {
+                let normal = to_rgb(ayu::CYAN);
+                Some(ColorValue::new(normal, dimmed(normal)))
+            }
             _ => None,
         }
     }
