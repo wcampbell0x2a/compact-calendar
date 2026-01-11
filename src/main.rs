@@ -4,6 +4,21 @@ use compact_calendar_cli::models::{ColorMode, PastDateDisplay, WeekStart, Weeken
 use compact_calendar_cli::rendering::CalendarRenderer;
 use std::path::PathBuf;
 
+/// Restore the default SIGPIPE signal handler.
+///
+/// Rust's pre-main initialization code sets SIGPIPE to ignore. This
+/// disposition is inherited by child processes through execve(),
+/// which it shouldn't be. See signal(7):
+///
+///   "During an execve(2), the dispositions of handled signals are
+///    reset to the default; the dispositions of ignored signals are
+///    left unchanged."
+fn restore_sigpipe_default() {
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+}
+
 #[derive(Parser, Debug)]
 struct Args {
     /// Year to display (defaults to current year)
@@ -32,6 +47,7 @@ struct Args {
 }
 
 fn main() {
+    restore_sigpipe_default();
     let args = Args::parse();
     let year = args.year.unwrap_or_else(|| chrono::Local::now().year());
 
