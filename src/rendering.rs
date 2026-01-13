@@ -487,10 +487,11 @@ impl<'a> CalendarRenderer<'a> {
     fn header_to_string(&self) -> String {
         let mut output = String::new();
         output.push_str(&format!("┌{:─<width$}┐\n", "", width = HEADER_WIDTH));
-        output.push_str(&format!(
-            "│                   COMPACT CALENDAR {}        │\n",
-            self.calendar.year
-        ));
+
+        // Center the title
+        let title = format!("COMPACT CALENDAR {}", self.calendar.year);
+        output.push_str(&format!("│{:^width$}│\n", title, width = HEADER_WIDTH));
+
         output.push_str(&format!("├{:─<width$}┤\n", "", width = HEADER_WIDTH));
         output.push_str("│              ");
         match self.calendar.week_start {
@@ -798,10 +799,11 @@ impl<'a> CalendarRenderer<'a> {
 
     fn print_header(&self) {
         println!("┌{:─<width$}┐", "", width = HEADER_WIDTH);
-        println!(
-            "│                   COMPACT CALENDAR {}        │",
-            self.calendar.year
-        );
+
+        // Center the title
+        let title = format!("COMPACT CALENDAR {}", self.calendar.year);
+        println!("│{:^width$}│", title, width = HEADER_WIDTH);
+
         println!("├{:─<width$}┤", "", width = HEADER_WIDTH);
         print!("│              ");
         match self.calendar.week_start {
