@@ -63,67 +63,15 @@ fn main() {
 
     let config = compact_calendar_cli::load_config(&args.config);
 
-    let week_start = if args.sunday {
-        WeekStart::Sunday
-    } else {
-        WeekStart::Monday
-    };
-
-    let weekend_display = if args.no_dim_weekends {
-        WeekendDisplay::Normal
-    } else {
-        WeekendDisplay::Dimmed
-    };
-
-    let color_mode = if args.work {
-        ColorMode::Work
-    } else {
-        ColorMode::Normal
-    };
-
-    let past_date_display = if args.no_strikethrough_past {
-        PastDateDisplay::Normal
-    } else {
-        PastDateDisplay::Strikethrough
-    };
-
-    // Build month filter based on CLI arguments
-    let month_filter = if let Some(month_str) = &args.month {
-        let mut filter = match MonthFilter::parse_month(month_str) {
-            Ok(f) => f,
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                std::process::exit(1);
-            }
-        };
-
-        // Apply following_months if specified
-        if let Some(n) = args.following_months {
-            match filter {
-                MonthFilter::Current => {
-                    // Validate N doesn't exceed 11 (max 12 months total)
-                    if n > 11 {
-                        eprintln!("Error: --following-months cannot exceed 11");
-                        std::process::exit(1);
-                    }
-                    filter = MonthFilter::CurrentWithFollowing(n);
-                }
-                _ => {
-                    eprintln!("Error: --following-months can only be used with --month current");
-                    std::process::exit(1);
-                }
-            }
-        }
-
-        filter
-    } else {
-        // If --following-months specified without --month, error
-        if args.following_months.is_some() {
-            eprintln!("Error: --following-months requires --month current");
+    let week_start = WeekStart::from_sunday_flag(args.sunday);
+    let weekend_display = WeekendDisplay::from_no_dim_flag(args.no_dim_weekends);
+    let color_mode = ColorMode::from_work_flag(args.work);
+    let past_date_display = PastDateDisplay::from_no_strikethrough_flag(args.no_strikethrough_past);
+    let month_filter = MonthFilter::from_cli_args(args.month.as_deref(), args.following_months)
+        .unwrap_or_else(|e| {
+            eprintln!("Error: {}", e);
             std::process::exit(1);
-        }
-        MonthFilter::All
-    };
+        });
 
     let calendar = compact_calendar_cli::build_calendar(
         year,

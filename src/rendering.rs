@@ -4,241 +4,6 @@ use anstyle::{AnsiColor, Color, Effects, RgbColor, Style};
 use chrono::Weekday;
 use chrono::{Datelike, NaiveDate};
 
-#[derive(Debug, Clone)]
-pub struct RenderState {
-    pub week_num: i32,
-    pub current_month: Option<u32>,
-    pub is_first_month: bool,
-    pub current_date: NaiveDate,
-}
-
-impl RenderState {
-    pub fn new(start_date: NaiveDate) -> Self {
-        Self {
-            week_num: 1,
-            current_month: None,
-            is_first_month: true,
-            current_date: start_date,
-        }
-    }
-
-    pub fn advance_week(&mut self, days: i64) {
-        self.week_num += 1;
-        self.current_date = self
-            .current_date
-            .checked_add_signed(chrono::Duration::days(days))
-            .unwrap();
-    }
-
-    pub fn set_current_month(&mut self, month: u32) {
-        self.current_month = Some(month);
-        self.is_first_month = false;
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct WeekRenderContext<'a> {
-    pub layout: &'a WeekLayout,
-    pub next_layout: Option<&'a WeekLayout>,
-    pub week_num: i32,
-    pub current_month: Option<u32>,
-    pub is_last_week: bool,
-}
-
-impl<'a> WeekRenderContext<'a> {
-    pub fn new(
-        layout: &'a WeekLayout,
-        next_layout: Option<&'a WeekLayout>,
-        week_num: i32,
-        current_month: Option<u32>,
-        is_last_week: bool,
-    ) -> Self {
-        Self {
-            layout,
-            next_layout,
-            week_num,
-            current_month,
-            is_last_week,
-        }
-    }
-
-    pub fn get_month_name(&self) -> &'static str {
-        if let Some((_, month)) = self.layout.month_start_idx {
-            MonthInfo::from_month(month).name
-        } else {
-            ""
-        }
-    }
-
-    pub fn has_month_boundary_at(&self, idx: usize) -> bool {
-        if idx > 0 && idx < self.layout.dates.len() {
-            let prev_date = self.layout.dates[idx - 1];
-            let date = self.layout.dates[idx];
-            date.month() != prev_date.month() || date.year() != prev_date.year()
-        } else {
-            false
-        }
-    }
-
-    pub fn next_is_boundary_after(&self, idx: usize) -> bool {
-        if idx < 6 {
-            let date = self.layout.dates[idx];
-            let next_date = self.layout.dates[idx + 1];
-            date.month() != next_date.month() || date.year() != next_date.year()
-        } else {
-            false
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct DateStyle {
-    pub color: Option<String>,
-    pub is_today: bool,
-    pub is_past: bool,
-    pub is_weekend: bool,
-    pub effects: Effects,
-}
-
-impl DateStyle {
-    pub fn new(
-        date: NaiveDate,
-        color: Option<String>,
-        today: NaiveDate,
-        past_date_display: PastDateDisplay,
-        weekend_display: WeekendDisplay,
-    ) -> Self {
-        let is_today = date == today;
-        let is_past = past_date_display == PastDateDisplay::Strikethrough && date < today;
-        let is_weekend = weekend_display == WeekendDisplay::Dimmed
-            && (date.weekday() == Weekday::Sat || date.weekday() == Weekday::Sun);
-
-        let mut effects = Effects::new();
-        if is_past {
-            effects |= Effects::STRIKETHROUGH;
-        }
-        if is_today {
-            effects |= Effects::UNDERLINE;
-        }
-        if is_weekend && color.is_none() {
-            effects |= Effects::DIMMED;
-        }
-
-        Self {
-            color,
-            is_today,
-            is_past,
-            is_weekend,
-            effects,
-        }
-    }
-
-    pub fn to_style(&self) -> Style {
-        if let Some(ref color) = self.color {
-            let base = if self.is_weekend {
-                ColorCodes::get_dimmed_bg_color(color)
-            } else {
-                ColorCodes::get_bg_color(color)
-            };
-            base.fg_color(ColorCodes::black_text().get_fg_color())
-                .effects(self.effects)
-        } else {
-            Style::new().effects(self.effects)
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct BorderContext {
-    pub month_boundary_idx: Option<usize>,
-    pub first_bar_idx: Option<usize>,
-}
-
-impl BorderContext {
-    pub fn from_layout(layout: &WeekLayout, current_month: Option<u32>, year: i32) -> Self {
-        let month_boundary_idx = Self::find_month_boundary(layout);
-        let first_bar_idx = Self::find_first_bar(layout, current_month, year);
-
-        Self {
-            month_boundary_idx,
-            first_bar_idx,
-        }
-    }
-
-    fn find_month_boundary(layout: &WeekLayout) -> Option<usize> {
-        for (idx, &date) in layout.dates.iter().enumerate() {
-            if idx > 0 {
-                let prev_date = layout.dates[idx - 1];
-                if date.month() != prev_date.month() || date.year() != prev_date.year() {
-                    return Some(idx);
-                }
-            }
-        }
-        None
-    }
-
-    fn find_first_bar(layout: &WeekLayout, current_month: Option<u32>, year: i32) -> Option<usize> {
-        for (idx, &date) in layout.dates.iter().enumerate() {
-            let in_month = date.year() == year && Some(date.month()) == current_month;
-            let prev_in_month = if idx > 0 {
-                let prev_date = layout.dates[idx - 1];
-                prev_date.year() == year && Some(prev_date.month()) == current_month
-            } else {
-                false
-            };
-
-            if in_month && !prev_in_month {
-                return Some(idx);
-            }
-        }
-        None
-    }
-
-    pub fn calculate_dashes_before(&self, boundary_idx: usize) -> usize {
-        (boundary_idx - 1) * 5 + 4
-    }
-
-    pub fn calculate_dashes_after(&self, boundary_idx: usize, days_in_week: usize) -> usize {
-        (days_in_week - boundary_idx) * 5 - 1
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AnnotationContext {
-    pub details_queue: Vec<(NaiveDate, DateDetail)>,
-    pub shown_ranges: Vec<usize>,
-}
-
-impl AnnotationContext {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn add_detail(&mut self, date: NaiveDate, detail: DateDetail) {
-        if !self.details_queue.iter().any(|(d, _)| d == &date) {
-            self.details_queue.push((date, detail));
-        }
-    }
-
-    pub fn pop_next_detail(&mut self) -> Option<(NaiveDate, DateDetail)> {
-        if !self.details_queue.is_empty() {
-            Some(self.details_queue.remove(0))
-        } else {
-            None
-        }
-    }
-
-    pub fn mark_range_shown(&mut self, idx: usize) {
-        if !self.shown_ranges.contains(&idx) {
-            self.shown_ranges.push(idx);
-        }
-    }
-
-    pub fn is_range_shown(&self, idx: usize) -> bool {
-        self.shown_ranges.contains(&idx)
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct ColorValue {
     pub normal: RgbColor,
@@ -462,26 +227,9 @@ impl<'a> CalendarRenderer<'a> {
 
     /// Get the filtered date range based on month filter
     fn get_filtered_date_range(&self) -> (NaiveDate, NaiveDate) {
-        let (start_month, end_month) = self
-            .calendar
+        self.calendar
             .month_filter
-            .get_month_range(self.calendar.year);
-
-        let start_date = NaiveDate::from_ymd_opt(self.calendar.year, start_month, 1).unwrap();
-
-        // Calculate the number of days in the end month
-        let end_day = if end_month == 12 {
-            31
-        } else {
-            NaiveDate::from_ymd_opt(self.calendar.year, end_month + 1, 1)
-                .unwrap()
-                .pred_opt()
-                .unwrap()
-                .day()
-        };
-        let end_date = NaiveDate::from_ymd_opt(self.calendar.year, end_month, end_day).unwrap();
-
-        (start_date, end_date)
+            .get_date_range(self.calendar.year)
     }
 
     fn header_to_string(&self) -> String {
@@ -798,18 +546,7 @@ impl<'a> CalendarRenderer<'a> {
     }
 
     fn print_header(&self) {
-        println!("┌{:─<width$}┐", "", width = HEADER_WIDTH);
-
-        // Center the title
-        let title = format!("COMPACT CALENDAR {}", self.calendar.year);
-        println!("│{:^width$}│", title, width = HEADER_WIDTH);
-
-        println!("├{:─<width$}┤", "", width = HEADER_WIDTH);
-        print!("│              ");
-        match self.calendar.week_start {
-            WeekStart::Monday => println!("Mon  Tue  Wed  Thu  Fri  Sat  Sun │"),
-            WeekStart::Sunday => println!("Sun  Mon  Tue  Wed  Thu  Fri  Sat │"),
-        }
+        print!("{}", self.header_to_string());
     }
 
     fn print_weeks(&self) {
@@ -938,19 +675,8 @@ impl<'a> CalendarRenderer<'a> {
         None
     }
 
-    fn print_month_border(&self, layout: &WeekLayout, _current_month: Option<u32>) {
-        if let Some((idx, _)) = layout.month_start_idx {
-            if idx > 0 {
-                print!("│             ┌");
-                let dashes_before = (idx - 1) * 5 + 4;
-                for _ in 0..dashes_before {
-                    print!("─");
-                }
-                print!("┬");
-                let dashes_after = (DAYS_IN_WEEK - idx) * 5 - 1;
-                println!("{:─<width$}┤", "", width = dashes_after);
-            }
-        }
+    fn print_month_border(&self, layout: &WeekLayout, current_month: Option<u32>) {
+        print!("{}", self.month_border_to_string(layout, current_month));
     }
 
     fn collect_details(
@@ -1171,58 +897,18 @@ impl<'a> CalendarRenderer<'a> {
     }
 
     fn print_separator(&self, layout: &WeekLayout, current_month: Option<u32>) {
-        print!("│             ├");
-        let mut first_bar_idx = None;
-        for (idx, &date) in layout.dates.iter().enumerate() {
-            let in_month = date.year() == self.calendar.year && Some(date.month()) == current_month;
-            let prev_in_month = if idx > 0 {
-                let prev_date = layout.dates[idx - 1];
-                prev_date.year() == self.calendar.year && Some(prev_date.month()) == current_month
-            } else {
-                false
-            };
-
-            if in_month && !prev_in_month {
-                first_bar_idx = Some(idx);
-            }
-        }
-
-        if let Some(bar_idx) = first_bar_idx {
-            if bar_idx > 0 {
-                let dashes = (bar_idx - 1) * 5 + 4;
-                print!("{:─<width$}┘", "", width = dashes);
-                let spaces = (DAYS_IN_WEEK - bar_idx) * 5 - 1;
-                println!("{: <width$}│", "", width = spaces);
-            } else {
-                println!("{:─<31}┤│", "");
-            }
-        } else {
-            println!("{:─<31}┤│", "");
-        }
+        print!("{}", self.separator_to_string(layout, current_month));
     }
 
     fn print_separator_before_month(
         &self,
-        _current_layout: &WeekLayout,
-        _current_month: Option<u32>,
+        current_layout: &WeekLayout,
+        current_month: Option<u32>,
         next_layout: &WeekLayout,
     ) {
-        if let Some((next_month_start_idx, _)) = next_layout.month_start_idx {
-            if next_month_start_idx == 0 {
-                print!("│             ├");
-                print!("{:─<width$}┤", "", width = CALENDAR_WIDTH);
-            } else {
-                print!("│             │");
-                let spaces_before = (next_month_start_idx - 1) * 5 + 4;
-                print!("{: <width$}┌", "", width = spaces_before);
-                let dashes = (DAYS_IN_WEEK - 1 - next_month_start_idx) * 5 + 4;
-                print!("{:─<width$}┤", "", width = dashes);
-            }
-        } else {
-            print!("│             │");
-            print!("{: <width$}", "", width = DAYS_IN_WEEK * 4 + 3);
-        }
-
-        println!();
+        print!(
+            "{}",
+            self.separator_before_month_to_string(current_layout, current_month, next_layout)
+        );
     }
 }
