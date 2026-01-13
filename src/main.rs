@@ -1,6 +1,8 @@
 use chrono::Datelike;
 use clap::Parser;
-use compact_calendar_cli::models::{ColorMode, PastDateDisplay, WeekStart, WeekendDisplay};
+use compact_calendar_cli::models::{
+    ColorMode, MonthFilter, PastDateDisplay, WeekStart, WeekendDisplay,
+};
 use compact_calendar_cli::rendering::CalendarRenderer;
 use std::path::PathBuf;
 
@@ -44,6 +46,14 @@ struct Args {
     /// Don't strikethrough past dates (by default past dates are crossed out)
     #[arg(long)]
     no_strikethrough_past: bool,
+
+    /// Display a specific month (number 1-12, name like "march", or "current")
+    #[arg(short = 'm', long)]
+    month: Option<String>,
+
+    /// Display current month plus N additional months (requires --month current)
+    #[arg(short = 'f', long)]
+    following_months: Option<u32>,
 }
 
 fn main() {
@@ -77,12 +87,51 @@ fn main() {
         PastDateDisplay::Strikethrough
     };
 
+    // Build month filter based on CLI arguments
+    let month_filter = if let Some(month_str) = &args.month {
+        let mut filter = match MonthFilter::parse_month(month_str) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                std::process::exit(1);
+            }
+        };
+
+        // Apply following_months if specified
+        if let Some(n) = args.following_months {
+            match filter {
+                MonthFilter::Current => {
+                    // Validate N doesn't exceed 11 (max 12 months total)
+                    if n > 11 {
+                        eprintln!("Error: --following-months cannot exceed 11");
+                        std::process::exit(1);
+                    }
+                    filter = MonthFilter::CurrentWithFollowing(n);
+                }
+                _ => {
+                    eprintln!("Error: --following-months can only be used with --month current");
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        filter
+    } else {
+        // If --following-months specified without --month, error
+        if args.following_months.is_some() {
+            eprintln!("Error: --following-months requires --month current");
+            std::process::exit(1);
+        }
+        MonthFilter::All
+    };
+
     let calendar = compact_calendar_cli::build_calendar(
         year,
         week_start,
         weekend_display,
         color_mode,
         past_date_display,
+        month_filter,
         config,
     );
 

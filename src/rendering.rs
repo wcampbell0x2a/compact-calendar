@@ -446,6 +446,44 @@ impl<'a> CalendarRenderer<'a> {
         output
     }
 
+    /// Check if a week should be rendered based on month filter
+    fn should_render_week(&self, layout: &WeekLayout) -> bool {
+        // Include week if ANY of its 7 days fall within the filtered month range
+        layout.dates.iter().any(|date| {
+            if date.year() != self.calendar.year {
+                false
+            } else {
+                self.calendar
+                    .month_filter
+                    .should_display_month(date.month(), self.calendar.year)
+            }
+        })
+    }
+
+    /// Get the filtered date range based on month filter
+    fn get_filtered_date_range(&self) -> (NaiveDate, NaiveDate) {
+        let (start_month, end_month) = self
+            .calendar
+            .month_filter
+            .get_month_range(self.calendar.year);
+
+        let start_date = NaiveDate::from_ymd_opt(self.calendar.year, start_month, 1).unwrap();
+
+        // Calculate the number of days in the end month
+        let end_day = if end_month == 12 {
+            31
+        } else {
+            NaiveDate::from_ymd_opt(self.calendar.year, end_month + 1, 1)
+                .unwrap()
+                .pred_opt()
+                .unwrap()
+                .day()
+        };
+        let end_date = NaiveDate::from_ymd_opt(self.calendar.year, end_month, end_day).unwrap();
+
+        (start_date, end_date)
+    }
+
     fn header_to_string(&self) -> String {
         let mut output = String::new();
         output.push_str(&format!("┌{:─<width$}┐\n", "", width = HEADER_WIDTH));
@@ -464,8 +502,7 @@ impl<'a> CalendarRenderer<'a> {
 
     fn weeks_to_string(&self) -> String {
         let mut output = String::new();
-        let start_date = NaiveDate::from_ymd_opt(self.calendar.year, 1, 1).unwrap();
-        let end_date = NaiveDate::from_ymd_opt(self.calendar.year, 12, 31).unwrap();
+        let (start_date, end_date) = self.get_filtered_date_range();
 
         let mut current_date = self.align_to_week_start(start_date);
         let mut week_num = 1;
@@ -478,6 +515,14 @@ impl<'a> CalendarRenderer<'a> {
 
         while current_date <= end_date {
             let layout = WeekLayout::new(current_date);
+
+            // Skip weeks that don't contain filtered months
+            if !self.should_render_week(&layout) {
+                current_date = current_date
+                    .checked_add_signed(chrono::Duration::days(DAYS_IN_WEEK as i64))
+                    .unwrap();
+                continue;
+            }
 
             let next_week_date = current_date
                 .checked_add_signed(chrono::Duration::days(DAYS_IN_WEEK as i64))
@@ -766,8 +811,7 @@ impl<'a> CalendarRenderer<'a> {
     }
 
     fn print_weeks(&self) {
-        let start_date = NaiveDate::from_ymd_opt(self.calendar.year, 1, 1).unwrap();
-        let end_date = NaiveDate::from_ymd_opt(self.calendar.year, 12, 31).unwrap();
+        let (start_date, end_date) = self.get_filtered_date_range();
 
         let mut current_date = self.align_to_week_start(start_date);
         let mut week_num = 1;
@@ -780,6 +824,14 @@ impl<'a> CalendarRenderer<'a> {
 
         while current_date <= end_date {
             let layout = WeekLayout::new(current_date);
+
+            // Skip weeks that don't contain filtered months
+            if !self.should_render_week(&layout) {
+                current_date = current_date
+                    .checked_add_signed(chrono::Duration::days(DAYS_IN_WEEK as i64))
+                    .unwrap();
+                continue;
+            }
 
             let next_week_date = current_date
                 .checked_add_signed(chrono::Duration::days(DAYS_IN_WEEK as i64))

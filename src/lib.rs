@@ -4,7 +4,7 @@ pub mod models;
 pub mod rendering;
 
 use config::CalendarConfig;
-use models::{Calendar, ColorMode, PastDateDisplay, WeekStart, WeekendDisplay};
+use models::{Calendar, ColorMode, MonthFilter, PastDateDisplay, WeekStart, WeekendDisplay};
 use std::fs;
 use std::path::PathBuf;
 
@@ -37,6 +37,7 @@ pub fn build_calendar(
     weekend_display: WeekendDisplay,
     color_mode: ColorMode,
     past_date_display: PastDateDisplay,
+    month_filter: MonthFilter,
     config: CalendarConfig,
 ) -> Calendar {
     let details = config.parse_dates_for_year(year);
@@ -47,6 +48,7 @@ pub fn build_calendar(
         weekend_display,
         color_mode,
         past_date_display,
+        month_filter,
         details,
         ranges,
     )
